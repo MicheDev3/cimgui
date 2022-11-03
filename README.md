@@ -50,7 +50,7 @@ In order to generate the distribution you will also need a C++ compiler for doin
 
 Make sure to download the `imgui` version you want to target from https://github.com/ocornut/imgui on a desired location.
 
-Run the following commands to start generating:
+* Run the following commands to start generating:
 
   cd <cimgui-folder>generator
 
@@ -62,7 +62,11 @@ Run the following commands to start generating:
 * generation-flags: a space separated string with one or more value; internal, freetype, comments
 * backend-targets-and-or-compilation-flags: a list of backend targets and any compilation flags you wish to set (e.g. -DIMGUI_USER_CONFIG or -DIMGUI_USE_WCHAR32)
 
-e.g: D:\Libs\LuaJIT\bin\mingw64\luajit D:\Libs\cimgui\generator\generator.lua D:\Libs\dist cl D:\Libs\imgui\1.88\imgui "internal comments" glfw opengl3
+* Windows example:
+
+  cd D:\Libs\cimgui\generator
+
+  D:\Libs\LuaJIT\bin\mingw64\luajit generator.lua D:\Libs\dist cl D:\Libs\imgui\1.88\imgui "internal comments" glfw opengl3
 
 NB: config_generator.lua, inside the generator folder in cimgui, for adding includes needed by your chosen backends (vulkan needs that).
 
