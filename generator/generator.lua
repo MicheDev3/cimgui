@@ -4,17 +4,21 @@
 --------------------------------------------------------------------------
 assert(_VERSION=='Lua 5.1',"Must use LuaJIT")
 assert(bit,"Must use LuaJIT")
+local path_separator = package.config:sub(1,1)
+
 local script_args = {...}
-local COMPILER = script_args[1]
-local INTERNAL_GENERATION = script_args[2]:match("internal") and true or false
-local FREETYPE_GENERATION = script_args[2]:match("freetype") and true or false
-local COMMENTS_GENERATION = script_args[2]:match("comments") and true or false
-local IMGUI_PATH = os.getenv"IMGUI_PATH" or "../imgui"
+local DISTRIBUTION = script_args[1]
+local DEFINITIONS = DISTRIBUTION..path_separator.."definitions"
+local COMPILER = script_args[2]
+local IMGUI_PATH = script_args[3]
+local INTERNAL_GENERATION = script_args[4]:match("internal") and true or false
+local FREETYPE_GENERATION = script_args[4]:match("freetype") and true or false
+local COMMENTS_GENERATION = script_args[4]:match("comments") and true or false
 local CFLAGS = ""
 local CPRE,CTEST
 --get implementations
 local implementations = {}
-for i=3,#script_args do
+for i=5,#script_args do
     if script_args[i]:match(COMPILER == "cl" and "^/" or "^%-") then
         local key, value = script_args[i]:match("^(.+)=(.+)$")
         if key and value then
@@ -66,6 +70,12 @@ print("INTERNAL_GENERATION",INTERNAL_GENERATION)
 print("FREETYPE_GENERATION",FREETYPE_GENERATION)
 print("COMMENTS_GENERATION",COMMENTS_GENERATION)
 print("CPRE",CPRE)
+
+--------------------------------------------------------------------------
+--this folder will contains the imgui generated definitions
+--------------------------------------------------------------------------
+print("Creating directory"..DEFINITIONS)
+os.execute("mkdir "..DEFINITIONS)
 --------------------------------------------------------------------------
 --this table has the functions to be skipped in generation
 --------------------------------------------------------------------------
@@ -98,6 +108,7 @@ local gdefines = {} --for FLT_MAX and others
 --------------------------------------------------------------------------
 --helper functions
 --------------------------------functions for C generation
+
 --load parser module
 local cpp2ffi = require"cpp2ffi"
 local read_data = cpp2ffi.read_data
@@ -252,7 +263,7 @@ local function cimgui_generation(parser)
     hstrfile = hstrfile:gsub([[#include "imgui_structs%.h"]],cstructsstr)
     local cfuncsstr = func_header_generate(parser)
     hstrfile = hstrfile:gsub([[#include "auto_funcs%.h"]],cfuncsstr)
-    save_data("./output/cimgui.h",cimgui_header,hstrfile)
+    save_data(DISTRIBUTION.."/cimgui.h",cimgui_header,hstrfile)
     
     --merge it in cimgui_template.cpp to cimgui.cpp
     local cimplem = func_implementation(parser)
@@ -261,7 +272,7 @@ local function cimgui_generation(parser)
 
     hstrfile = hstrfile:gsub([[#include "auto_funcs%.cpp"]],cimplem)
 	local ftdef = FREETYPE_GENERATION and "#define IMGUI_ENABLE_FREETYPE\n" or ""
-    save_data("./output/cimgui.cpp",cimgui_header, ftdef, hstrfile)
+    save_data(DISTRIBUTION.."/cimgui.cpp",cimgui_header, ftdef, hstrfile)
 
 end
 --------------------------------------------------------
@@ -336,7 +347,7 @@ local parser1 = parseImGuiHeader(extra_includes .. [[headers.h]],headersT)
 os.remove("headers.h")
 parser1:do_parse()
 
-save_data("./output/overloads.txt",parser1.overloadstxt)
+save_data(DEFINITIONS.."/overloads.txt",parser1.overloadstxt)
 cimgui_generation(parser1)
 
 ----------save struct and enums lua table in structs_and_enums.lua for using in bindings
@@ -346,13 +357,13 @@ structs_and_enums_table.templated_structs = parser1.templated_structs
 structs_and_enums_table.typenames = parser1.typenames
 structs_and_enums_table.templates_done = parser1.templates_done
 
-save_data("./output/structs_and_enums.lua",serializeTableF(structs_and_enums_table))
-save_data("./output/typedefs_dict.lua",serializeTableF(parser1.typedefs_dict))
+save_data(DEFINITIONS.."/structs_and_enums.lua",serializeTableF(structs_and_enums_table))
+save_data(DEFINITIONS.."/typedefs_dict.lua",serializeTableF(parser1.typedefs_dict))
 
 ----------save fundefs in definitions.lua for using in bindings
 --DefsByStruct(pFP)
 set_defines(parser1.defsT) 
-save_data("./output/definitions.lua",serializeTableF(parser1.defsT))
+save_data(DEFINITIONS.."/definitions.lua",serializeTableF(parser1.defsT))
 
 --check every function has ov_cimguiname
 -- for k,v in pairs(parser1.defsT) do
@@ -409,11 +420,11 @@ if #implementations > 0 then
     -- save ./cimgui_impl.h
     --local cfuncsstr = func_header_impl_generate(parser2) 
 	--local cstructstr1,cstructstr2 = parser2.structs_and_enums[1], parser2.structs_and_enums[2]
-    --save_data("./output/cimgui_impl.h",cstructstr1,cstructstr2,cfuncsstr)
-	save_data("./output/cimgui_impl.h",impl_str)
+    --save_data(DEFINITIONS.."/cimgui_impl.h",cstructstr1,cstructstr2,cfuncsstr)
+	save_data(DEFINITIONS.."/cimgui_impl.h",impl_str)
 
     ----------save fundefs in impl_definitions.lua for using in bindings
-    save_data("./output/impl_definitions.lua",serializeTableF(parser2.defsT))
+    save_data(DEFINITIONS.."/impl_definitions.lua",serializeTableF(parser2.defsT))
 
 end -- #implementations > 0 then
 
@@ -432,20 +443,18 @@ local function json_prepare(defs)
 end
 ---[[
 local json = require"json"
-save_data("./output/definitions.json",json.encode(json_prepare(parser1.defsT),{dict_on_empty={defaults=true}}))
+save_data(DEFINITIONS.."/definitions.json",json.encode(json_prepare(parser1.defsT),{dict_on_empty={defaults=true}}))
 --delete extra info for json
 structs_and_enums_table.templated_structs = nil
 structs_and_enums_table.typenames = nil
 structs_and_enums_table.templates_done = nil
-save_data("./output/structs_and_enums.json",json.encode(structs_and_enums_table))
-save_data("./output/typedefs_dict.json",json.encode(parser1.typedefs_dict))
+save_data(DEFINITIONS.."/structs_and_enums.json",json.encode(structs_and_enums_table))
+save_data(DEFINITIONS.."/typedefs_dict.json",json.encode(parser1.typedefs_dict))
 if parser2 then
-    save_data("./output/impl_definitions.json",json.encode(json_prepare(parser2.defsT),{dict_on_empty={defaults=true}}))
+    save_data(DEFINITIONS.."/impl_definitions.json",json.encode(json_prepare(parser2.defsT),{dict_on_empty={defaults=true}}))
 end
 --]]
--------------------copy C files to repo root
-copyfile("./output/cimgui.h", "../cimgui.h")
-copyfile("./output/cimgui.cpp", "../cimgui.cpp")
-os.remove("./output/cimgui.h")
-os.remove("./output/cimgui.cpp")
+-------------------copy Make files to the designated location
+copyfile("../CMakeLists.txt", DISTRIBUTION.."/CMakeLists.txt")
+copyfile("../Makefile", DISTRIBUTION.."/Makefile")
 print"all done!!"

@@ -11,7 +11,6 @@ History:
 Initially cimgui was developed by Stephan Dilly as hand-written code but lately turned into an auto-generated version by sonoro1234 in order to keep up with imgui more easily (letting the user select the desired branch and commit)
 
 Notes:
-* currently this wrapper is based on version [1.88 of Dear ImGui with internal api]
 * only functions, structs and enums from imgui.h (an optionally imgui_internal.h) are wrapped.
 * if you are interested in imgui backends you should look [LuaJIT-ImGui](https://github.com/sonoro1234/LuaJIT-ImGui) project.
 * All naming is algorithmic except for those names that were coded in cimgui_overloads table (https://github.com/cimgui/cimgui/blob/master/generator/generator.lua#L60). In the official version this table is empty.
@@ -19,30 +18,60 @@ Notes:
 
 # compilation
 
-* clone 
-  * `git clone --recursive https://github.com/cimgui/cimgui.git`
-  * `git submodule update --init --recursive` (If already cloned)
-* compile 
-  * using makefile on linux/macOS/mingw (Or use CMake to generate project)
-  * cmake options are IMGUI_STATIC (compiling as static library), IMGUI_FREETYPE (for using Freetype2) and FREETYPE_PATH (Freetype2 cmake install location) (only if cimgui is generated with freetype option)
-  * or as in https://github.com/sonoro1234/LuaJIT-ImGui/tree/master/build
+  either use makefile on linux/macOS/mingw or CMake (to generate project and then compile)
+
+  CMAKE flags are:
+
+  * IMGUI_STATIC: compiling as static library
+  * IMGUI_FREETYPE: for using Freetype2
+  * FREETYPE_PATH: for defining the Freetype2 cmake install location (only if cimgui is generated with freetype option)
+  * IMGUI_INCLUDE: path to parent imgui target version folder
+
+  CMake Windows example for debug and release mods (generate project and compile):
+
+    cmake -G"NMake Makefiles" -SD:\Libs\dist -BD:\Libs\dist\debug -DCMAKE_BUILD_TYPE=Debug -DIMGUI_STATIC=yes -DIMGUI_INCLUDE=D:\Libs\imgui\1.88
+
+    cmake --build D:\Libs\dist\debug
+
+    cmake -G"NMake Makefiles" -SD:\Libs\dist -BD:\Libs\dist\release -DCMAKE_BUILD_TYPE=Release -DIMGUI_STATIC=yes -DIMGUI_INCLUDE=D:\Libs\imgui\1.88
+
+    cmake --build D:\Libs\dist\release
+
+  NB: you must generate the target output for the specified imgui version and backend before the running a compilation.
   
   For compiling with backends there are now examples with SDL2 and opengl3/vulkan in folder backend_test.
   They'll generate a cimgui_sdl module and a test_sdl executable.
 
-# using generator
+# generation
 
+Download LuaJIT from https://github.com/LuaJIT/LuaJIT.git (better 2.1 branch) or from https://luapower.com/luajit/download
 
-* this is only needed (before compilation) if you want an imgui version different from the one provided, otherwise generation is already done.
-* you will need LuaJIT (https://github.com/LuaJIT/LuaJIT.git better 2.1 branch) or precompiled for linux/macOS/windows in https://luapower.com/luajit/download
-* you need to use also a C++ compiler for doing preprocessing: gcc (In windows MinGW-W64-builds for example), clang or cl (MSVC). (this repo was done with gcc)
-* update `imgui` folder to the version you desire.
-* edit `generator/generator.bat` on windows, or `generator/generator.sh` on linux, to choose between gcc, clang, or cl and to choose desired backends and whether imgui_internal is generated or not, Freetype2 is used or not and comments are generated or not
-* the defaults of generator are gcc as compiler, imgui_internal included and sdl, glfw, vulkan, opengl2 and opengl3 as backends.
-* edit config_generator.lua for adding includes needed by your chosen backends (vulkan needs that).
-* Run generator.bat or generator.sh with gcc, clang or cl and LuaJIT on your PATH.
-* as a result some files are generated: `cimgui.cpp`, `cimgui.h` and `cimgui_impl.h` for compiling and some lua/json files with information about the binding: `definitions.json` with function info, `structs_and_enums.json` with struct and enum info, `impl_definitions.json` with functions from the backends info. 
-* You can pass compiler flags to generator.sh or generator.bat at the end of the call to further specify the compiler behavior. (e.g. -DIMGUI_USER_CONFIG or -DIMGUI_USE_WCHAR32)
+In order to generate the distribution you will also need a C++ compiler for doing some preprocessing: gcc, clang or cl.
+
+Make sure to download the `imgui` version you want to target from https://github.com/ocornut/imgui on a desired location.
+
+Run the following commands to start generating:
+
+  cd <cimgui-folder>generator
+
+  <luajit-folder>luajit generator.lua <dist-path> <compiler> <imgui-path> <generation-flags> <backend-targets-and-or-compilation-flags>
+
+* dist-path: the distribution location where to generate the file in
+* compiler: either gcc, clang, cl
+* imgui-path: the imgui target version location
+* generation-flags: a space separated string with one or more value; internal, freetype, comments
+* backend-targets-and-or-compilation-flags: a list of backend targets and any compilation flags you wish to set (e.g. -DIMGUI_USER_CONFIG or -DIMGUI_USE_WCHAR32)
+
+e.g: D:\Libs\LuaJIT\bin\mingw64\luajit D:\Libs\cimgui\generator\generator.lua D:\Libs\dist cl D:\Libs\imgui\1.88\imgui "internal comments" glfw opengl3
+
+NB: config_generator.lua, inside the generator folder in cimgui, for adding includes needed by your chosen backends (vulkan needs that).
+
+As result the following files will be generated:
+
+* `cimgui.cpp`, `cimgui.h` and `cimgui_impl.h`: compilations file
+* `definitions.json`: binding imgui function definitions
+* `structs_and_enums.json`: struct and enum definitions
+* `impl_definitions.json`: binding backend function definitions
 
 # generate binding
 * C interface is exposed by cimgui.h when you define CIMGUI_DEFINE_ENUMS_AND_STRUCTS

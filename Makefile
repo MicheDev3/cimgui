@@ -2,6 +2,8 @@
 # Cross Platform Makefile
 # Compatible with Ubuntu 14.04.1 and macOS
 
+# TODO: to be updated
+
 OBJS = cimgui.o
 OBJS += ./imgui/imgui.o
 OBJS += ./imgui/imgui_draw.o
